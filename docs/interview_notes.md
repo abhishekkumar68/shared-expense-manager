@@ -53,6 +53,39 @@ This document provides justifications for the architectural decisions to help pr
 ### Why `timestamps: true` on all models?
 - Sequelize automatically adds `createdAt` and `updatedAt` columns. These are essential for debugging, sorting, and audit trails — with zero extra code.
 
+
 ### Why define associations in a central index.js?
 - Sequelize requires both sides of an association to be loaded before they can be linked. A central `models/index.js` file imports all models and defines all associations in one place. This avoids circular dependency issues that would occur if models tried to import each other directly.
 
+---
+
+## Milestone 3 Decisions — Core API Design
+
+### Why separate controllers and routes?
+- **Single Responsibility Principle**: Routes define *what URL maps to what function*. Controllers contain *the business logic*. This separation keeps each file small, testable, and easy to explain.
+- **Scalability**: As the app grows, you can add middleware (like auth) at the route level without touching business logic.
+
+### Why does createGroup auto-add the creator as a member?
+- A group with no members is useless. The creator should always be the first member. This prevents orphan groups and avoids requiring a separate API call after group creation.
+
+### Why use Sequelize transactions in createExpense?
+- Creating an expense involves two database operations: inserting the expense row and inserting multiple split rows. If the splits fail (e.g., invalid user_id), we must roll back the expense too. A transaction ensures **atomicity** — either everything succeeds or nothing is saved. This is critical for financial data integrity.
+
+### Why validate that split amounts sum to the expense total?
+- If splits don't add up, the balance calculation will be wrong. Catching this at the API layer prevents bad data from entering the database. This is a **data integrity check** — the earlier you catch bad data, the cheaper it is to fix.
+
+### Why does removeMember set leave_date instead of deleting the row?
+- **Audit trail**: Deleting the row destroys the history. Setting `leave_date` is a soft-delete pattern — we know who was in the group, when they joined, and when they left. This is essential for determining which expenses should include a particular member.
+- **Rejoining**: A user who left can rejoin later, creating a new membership record with a new `join_date`.
+
+### Why check for duplicate active membership before adding a member?
+- Without this check, the same user could be added twice with `leave_date = null`, creating ambiguous membership records. The validation query `WHERE user_id = X AND group_id = Y AND leave_date IS NULL` ensures one active membership per user per group.
+
+### Why validate paid_by ≠ paid_to on settlements?
+- A settlement where someone pays themselves is logically meaningless and would corrupt balance calculations. This is a simple business rule validation that prevents nonsensical data.
+
+### Why use explicit split deletion in deleteExpense (instead of CASCADE)?
+- While Sequelize supports `onDelete: 'CASCADE'`, we delete splits explicitly in the controller for **clarity and predictability**. In an interview, it's easier to point to explicit code than to explain implicit ORM behavior. Explicit is better than implicit.
+
+### Why order expenses and settlements by date DESC?
+- The most recent transactions are the most relevant. Sorting by `date DESC` puts them at the top of the response, which is what users expect.
