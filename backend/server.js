@@ -2,8 +2,8 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-// Initialize DB connection
-const sequelize = require('./config/db');
+// Import all models and associations
+const { sequelize } = require('./models');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -17,6 +17,13 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'success', message: 'Server is running normally' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+// Sync database and start server
+// alter:true updates existing tables without dropping data (safe for development)
+sequelize.sync({ alter: true }).then(() => {
+  console.log('Database synced successfully.');
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}).catch((err) => {
+  console.error('Failed to sync database:', err);
 });

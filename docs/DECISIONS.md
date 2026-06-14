@@ -13,3 +13,10 @@ A relational database ensures data integrity, which is essential for financial/e
 
 ## ORM: Sequelize
 Sequelize provides a robust abstraction over raw SQL queries, making schema definition, migrations, and relationship management easier while maintaining security against SQL injection.
+
+## Database Schema (Milestone 2)
+- **6 tables**: `users`, `groups`, `group_members`, `expenses`, `expense_splits`, `settlements`.
+- `group_members` is a junction table with `join_date` and `leave_date` columns to track membership history.
+- `expense_splits` stores the per-user share of each expense, supporting unequal splits.
+- `settlements` are kept separate from expenses — they represent direct transfers, not shared costs.
+- All monetary fields use `DECIMAL(10,2)` to avoid floating-point precision errors.
